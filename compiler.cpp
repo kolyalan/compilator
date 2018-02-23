@@ -11,18 +11,67 @@ enum TYPE{UNDEF, RESERVED, ID, CONSTINT, CONSTREAL, CONSTSTR, CONSTCHAR, CONSTLO
 struct token {
 	TYPE type = UNDEF;
 	string value;
+	int line;
+	int position;
 };
 
+bool operator == (token t, string s) {
+	return t.value == s;
+}
+
+bool operator == (token t, TYPE s) {
+	return t.type == s;
+}
+
+bool operator != (token t, string s) {
+	return t.value != s;
+}
+
+bool operator != (token t, TYPE s) {
+	return t.type != s;
+}
+
+bool is_composite_type(token & c) {
+	return c.type == RESERVED && (c.value == "long" || c.value == "signed" || c.value == "unsigned");
+}
+
+bool is_type(token & c) {
+	return (c.type == RESERVED && (c.value == "int" || c.value == "double" || c.value == "float" || c.value == "char" || c.value == "bool"));
+}
+
+bool is_comparison_op(token & c) {
+	return (c.type == OPERATION) && (c.value == ">" || c.value == "<" || c.value == "!=" || c.value == "==" || c.value == "<=" || c.value == ">="); 
+}
+
+bool is_sum_op(token & c) {
+	return c.type == OPERATION && (c.value == "+" || c.value == "-" || c.value == "||");
+}
+
+bool is_mult_op(token & c) {
+	return c.type == OPERATION && (c.value == "*" || c.value == "/" || c.value == "&&" || c.value == "%"); 
+}
+
+vector<token> list;
+size_t last_elem = 0;
+
 set <string> reserved = {"int", "long", "char", "float", "double", "void", "signed", "unsigned", "bool", "return", "continue",
-	"for", "while", "do", "if", "else", "break", "true", "false", };
+	"for", "while", "do", "if", "else", "break", "true", "false", "to", "downto"};
 
 void lexic_analis (char * infile, vector<token> &list) {
 	ifstream fin(infile);
 	int state = 0;
 	token current;
 	current.value = "";
+	current.line = 1;
+	current.position = 0;
 	char c;
 	while (fin.get(c)) {
+		if (c == '\n') {
+			current.line++;
+			current.position = 0;
+		} else {
+			current.position++;
+		}
 		if (state == 0) {
 			if (c == ' ') continue;
 			else if (('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || c == '_') { 
@@ -50,6 +99,7 @@ void lexic_analis (char * infile, vector<token> &list) {
 			} else if (c == '*' || c == '/' || c == '+' || c == '-' || c == '=' || c == '%' || c == '&' || c == '.' ||
 					   c == '!' || c == '~' || c == '<' || c == '>' || c == '^' || c == '|') {
 				fin.unget();
+				current.position--;
 				state = 11;
 			}
 		} else if (state == 1) {//Идентификатор или зарезервированное слово;
@@ -57,6 +107,7 @@ void lexic_analis (char * infile, vector<token> &list) {
 				current.value += c;
 			} else {
 				fin.unget();
+				current.position--;
 				if (reserved.count(current.value) == 1) {
 					if (current.value == "true" || current.value == "false") {
 						current.type = CONSTLOGIC;
@@ -82,6 +133,7 @@ void lexic_analis (char * infile, vector<token> &list) {
 				state = 4;
 			} else {
 				fin.unget();
+				current.position--;
 				current.type = CONSTINT;
 				list.push_back(current);
 				current.type = UNDEF;
@@ -98,6 +150,7 @@ void lexic_analis (char * infile, vector<token> &list) {
 				throw "Две десятичных точки в одном числе";
 			} else {
 				fin.unget();
+				current.position--;
 				current.type = CONSTREAL;
 				list.push_back(current);
 				current.type = UNDEF;
@@ -120,6 +173,7 @@ void lexic_analis (char * infile, vector<token> &list) {
 				throw "Две десятичных точки в одном числе";
 			} else {
 				fin.unget();
+				current.position--;
 				current.type = CONSTREAL;
 				list.push_back(current);
 				current.type = UNDEF;
@@ -156,6 +210,7 @@ void lexic_analis (char * infile, vector<token> &list) {
 			} else if (c == '\n' || c == '\r') {
 				if (fin.get(c) && c != '\n' && c == '\r') {
 					fin.unget();
+					current.position--;
 				}
 			} else {
 				current.value += c;
@@ -203,42 +258,51 @@ void lexic_analis (char * infile, vector<token> &list) {
 			if (c == '+') {
 				current.value += "+";
 				if (fin.get(c)) {
+					current.position++;
 					if (c == '+' || c == '=') {
 						current.value += c;
 					} else {
 						fin.unget();
+						current.position--;
 					}
 				}
 			} else if (c == '-') {
 				current.value += "-";
 				if (fin.get(c)) {
+					current.position++;
 					if (c == '-' || c == '=' || c == '>') {
 						current.value += c;
 					} else {
 						fin.unget();
+						current.position--;
 					}
 				}
 			} else if (c == '&') {
 				current.value += c;
 				if (fin.get(c)) {
+					current.position++;
 					if (c == '=' || c == '&') {
 						current.value += c;
 					} else {
 						fin.unget();
+						current.position--;
 					}
 				}
 			} else if (c == '|') {
 				current.value += c;
 				if (fin.get(c)) {
+					current.position++;
 					if (c == '=' || c == '|') {
 						current.value += c;
 					} else {
 						fin.unget();
+						current.position--;
 					}
 				}
 			} else if (c == '/') {
 				current.value += c;
 				if (fin.get(c)) {
+					current.position++;
 					if (c == '=' || c == '|') {
 						current.value += c;
 					} else if (c == '/') {
@@ -251,51 +315,62 @@ void lexic_analis (char * infile, vector<token> &list) {
 						continue;
 					} else {
 						fin.unget();
+						current.position--;
 					}
 				}
 			} else if (c == '=' || c == '%' || c == '!' || c == '*' || c == '^') {
 				current.value += c;
 				if (fin.get(c)) {
+					current.position++;
 					if (c == '=') {
 						current.value += c;
 					} else {
 						fin.unget();
+						current.position--;
 					}
 				}
 			} else if (c == '<') {
 				current.value += c;
 				if (fin.get(c)) {
+					current.position++;
 					if (c == '=') {
 						current.value += c;
 					} else if (c == '<') {
 						current.value += c;
 						if (fin.get(c)) {
+							current.position++;
 							if (c == '=') {
 								current.value += c;
 							} else {
 								fin.unget();
+								current.position--;
 							}
 						}
 					} else {
 						fin.unget();
+						current.position--;
 					}
 				}
 			} else if (c == '>') {
 				current.value += c;
 				if (fin.get(c)) {
+					current.position++;
 					if (c == '=') {
 						current.value += c;
 					} else if (c == '>') {
 						current.value += c;
 						if (fin.get(c)) {
+							current.position++;
 							if (c == '=') {
 								current.value += c;
 							} else {
 								fin.unget();
+								current.position--;
 							}
 						}
 					} else {
 						fin.unget();
+						current.position--;
 					}
 				}
 			} else if (c == '.' || c == '~') {
@@ -313,6 +388,7 @@ void lexic_analis (char * infile, vector<token> &list) {
 		} else if (state == 13) {//Читаем многострочный комментарий
 			if (c == '*') {
 				if (fin.get(c)) {
+					current.position++;
 					if (c == '/') {
 						state = 0;
 					}
@@ -320,6 +396,458 @@ void lexic_analis (char * infile, vector<token> &list) {
 			}
 		}
 	}
+	current.type = UNDEF;
+	current.value = "END";
+	list.push_back(current);
+}
+
+token c;
+
+void gc() {
+	if (last_elem < list.size()) c = list[last_elem++];
+	else c = list.back();
+}
+
+void program();
+void description();//доедает за собой ;
+void composite_operator();
+void section();//запятые не ест.
+void expression(); //запятыми не кормить
+void single_operator();
+void input_operator();
+void output_operator();
+void choose_for();
+void dowhile();
+void whiledo();
+void simple_expr();
+void term();
+void atom1();
+void atom();
+void cfor();
+void pfor();
+
+void program() {
+	//cout << "program " << c.value << endl;
+	while (c.type != UNDEF) {
+		if (c.type == RESERVED) {
+			if (c.value == "int") {
+				gc();
+				if (c.value == "main") {
+					gc();
+					if (c.value != "("){
+						cout << "После main ожидалась скобка" << endl;
+						throw c;
+					}
+					gc();
+					if (c.value != ")") {
+						cout << "Не хватает закрывающей скобки после main" << endl;
+						throw c;
+					}
+					gc();
+					composite_operator();
+					break;
+				} else {
+					last_elem-=2;
+					gc();
+					description();
+				}
+			} else {
+				description();
+			}
+		} else {
+			cout << "Тут вообще что-то левое." << endl;
+			throw c;
+		};
+	}
+	if (c != UNDEF) {
+		cout << "Тут вообще что-то левое." << endl;
+		throw c;
+	}
+}
+
+void description() {//доедает свою ;
+	//cout << "desc " << c.value << endl;
+	if (c.type != RESERVED) {
+		cout << "Ожидалось название типа" << endl;
+		throw c;
+	}
+	if (c.value == "long" || c.value == "signed" || c.value == "unsigned") {
+		gc();
+		if (c.value == "int" || c.value == "double" || c.value == "float" || c.value == "char" || c.value == "bool") {
+			goto ss;
+		} else {
+			last_elem--;
+			gc();
+			goto ss;
+		}
+	}
+	if (c.value == "int" || c.value == "double" || c.value == "float" || c.value == "char" || c.value == "bool") {
+		ss:;
+		gc();
+		section();
+		while (c.value == ",") {
+			gc();
+			section();
+		}
+		if (c.value != ";") {
+			cout << "Ожидалась ; после описания" << endl;
+			throw c;
+		}
+		gc();
+		return;
+	}
+	cout << "Кажется, у вас неправильные типы" << endl;
+	throw c;
+}
+
+void section() { //запятые и ; не ест.
+	//cout << "section " << c.value << endl;
+	if (c.type != ID) {
+		cout << "Ожидалось имя переменной для описания" << endl;
+		throw c;
+	}
+	gc();
+	if (c.value == "," || c.value == ";") return;
+	if (c.value == "=") {
+		gc();
+		expression();
+	} else {
+		cout << "Ожидалась ; после описания или инициализация переменной" << endl;
+		throw c;
+	}
+}
+
+void composite_operator() { //Доедает за собой свои скобки {}
+	//cout << "cmp_op " << c.value << endl;
+	if (c != "{") {
+		cout << "Ожидалась } " << endl;
+		throw c;
+	}
+	gc();
+	while (c != "}" && c != UNDEF) {
+		single_operator();
+	}
+	if (c == UNDEF) {
+		cout << "Внезапный конец файла" << endl;
+		throw c;
+	};
+	gc();
+}
+
+void expression() {//запятые и ; не ест.
+	//cout << "expr " << c.value << endl;
+	if (c == ID) {
+		gc();
+		if (c == "=") {
+			gc();
+			expression();
+		} else {
+			last_elem-=2;
+			gc();
+			goto suda;
+		}
+	} else {
+		suda:;
+		simple_expr();
+		while (is_comparison_op(c)) {
+			gc();
+			simple_expr();
+		}
+	}
+}
+
+void simple_expr() {
+	//cout << "s_expr " << c.value << endl;
+	term();
+	while(is_sum_op(c)){
+		gc();
+		term();
+	}
+}
+
+void term() {
+	//cout << "term " << c.value << endl;
+	atom1();
+	while(is_mult_op(c)) {
+		gc();
+		atom1();
+	}
+}
+
+void atom1() {
+	//cout << "atom1 " << c.value << endl;
+	atom();
+	if (c == "++" || c == "--") {
+		gc();
+		return;
+	}
+	if (c == "^") {
+		gc();
+		atom();
+		return;
+	}
+}
+
+void atom() {
+	//cout << "atom " << c.value << endl;
+	if (c == ID || c == CONSTCHAR || c == CONSTINT || c == CONSTLOGIC || c == CONSTREAL || c == CONSTSTR){
+		gc();
+		return;
+	}
+	if (c == "+" || c == "-") {
+		gc();
+		if (c == ID || c == CONSTCHAR || c == CONSTINT || c == CONSTREAL) {
+			gc();
+			return;
+		}
+		if (c == "(") goto bracket;
+		cout << "Унарный оператор " << c.value << " не применим к данному типу" << endl;
+		throw c;
+	}
+	if (c == "!") {
+		gc();
+		atom();
+		return;
+	}
+	if (c == "(") {
+		bracket:;
+		gc();
+		expression();
+		if (c != ")") {
+			cout << "А ну закрыл скобку, быстраа!!" << endl;
+			throw c;
+		};
+		gc();
+		return;
+	}
+	cout << "Неизвестный науке оператор" << endl;
+	throw c;
+}
+
+void single_operator() {//доедает за собой ; но не }
+	//cout << "operator" << ' ' << c.value << endl;
+	if (c == "cin") {
+		gc();
+		input_operator();
+		return;
+	}
+	if (c == "cout") {
+		gc();
+		output_operator();
+		return;
+	}
+	if (c == "{") {
+		composite_operator();
+		return;
+	}
+	if (c == "for") {
+		gc();
+		choose_for();
+		return;
+	}
+	if (c == "do") {
+		gc();
+		dowhile();
+		return;
+	}
+	if (c == "while") {
+		gc();
+		whiledo();
+		return;
+	}
+	if (is_composite_type(c) || is_type(c)) {
+		description();
+		return;
+	}
+	if (c == "return") {
+		gc();
+		expression();
+		if (c != ";") {
+			cout << "Ожидалась ; после return" << endl;
+			throw c;
+		};
+		gc();
+		return;
+	}
+	expression();//А не доесть ли мне здесь ; ?
+	if (c == ";") gc();
+}
+
+void input_operator() {
+	//cout << "input " << c.value << endl;
+	if (c != ">>") {
+		cout << "Нормальные люди написали бы здесь >> " << endl;
+		throw c;
+	};
+	ss:;
+	gc();
+	if (c != ID) {
+		cout << "Я думал, ты в переменную считывать собираешься..." << endl;
+		throw c;
+	};
+	gc();
+	if (c == ">>") goto ss;
+	if (c != ";") {
+		cout << "Опять забываешь ; ?" << endl;
+		throw c;
+	}
+	gc();
+}
+
+void output_operator() {
+	//cout << "output " << c.value << endl;
+	if (c != "<<") {
+		cout << "Нормальные люди написали бы здесь <<" << endl;
+		throw c;
+	}
+	gc();
+	while (true) {
+		if (c != "endl") expression();
+		else gc();
+		if (c == ";") {
+			gc();
+			break;
+		}
+		if (c != "<<") {
+			cout << "Опять ; забываешь?" << endl;
+			throw c;
+		}
+		gc();
+	}
+}
+
+void choose_for() {
+	//cout << "choose_for " << c.value << endl;
+	if (c != "(") {
+		cout << "Я надеюсь, ты забываешь скобочки в for не намеренно?" << endl;
+		throw c;
+	}
+	gc();
+	if (c == ID) {
+		gc();
+		if (c == ":") {
+			gc();
+			if (c == "=") {
+				last_elem-=3;
+				gc();
+				pfor();
+			} else {
+				cout << "Ты наконец решишь, Паскаль я или не Паскаль? Ставь тут либо :=, либо пиши нормально." << endl;
+				throw c;
+			}
+		} else {
+			last_elem -= 2;
+			gc();
+			cfor();
+		}
+	} else {
+		cfor();
+	}
+	if (c == "else") {
+		gc();
+		single_operator();
+	}
+}
+
+void cfor () {
+	if (is_type(c) || is_composite_type(c)) {
+		description();
+	} else {
+		expression();
+		if (c != ";") {
+			cout << "Серьезно? Перестань забывать ; , пожалуйста!" << endl;
+			throw c;
+		}
+		gc();
+	}
+	expression();
+	if (c != ";") {
+		cout << "МНЕ НУЖНА ; Я НЕ ПИТОН! ХОТЯ, ЕСЛИ ЕЩЕ ПАРУ РАЗ ЗАБУДЕШЬ, КУСАТЬСЯ НАЧНУ..." << endl;
+		throw c;
+	}
+	gc();
+	expression();
+	if (c != ")") {
+		cout << "Осторожно, скобки закрываются" << endl;
+		throw c;
+	}
+	gc();
+	single_operator();
+}
+
+void pfor() {
+	//cout << "pfor " << c.value << endl;
+	if (c != ID) {
+		cout << "Тот самый случай, когда ошибка в компиляторе" << endl;
+		throw c;
+	}
+	gc();
+	if (c != ":") {
+		cout << "Тот самый случай, когда ошибка в компиляторе" << endl;
+		throw c;
+	}
+	gc();
+	if (c != "=") {
+		cout << "Тот самый случай, когда ошибка в компиляторе" << endl;
+		throw c;
+	}
+	gc();
+	expression();
+	if (c == "to" || c == "downto") {
+		gc();
+		expression();
+		if (c != ")") {
+			cout << "Скобки закрывай! Ты не в метро!" << endl;
+			throw c;
+		}
+		gc();
+		single_operator();
+	} else {
+		cout << "Вверх или вниз?" << endl;
+		throw c;
+	}
+}
+
+void dowhile() {
+	//cout << "do while " << c.value << endl;
+	single_operator();
+	if (c != "while") {
+		cout << "А как же while?" << endl;
+		throw c;
+	}
+	gc();
+	if (c != "(") {
+		cout << "Хм... Вы не ставите скобки в while... Это жжжжж неспроста..." << endl;
+		throw c;
+	}
+	gc();
+	expression();
+	if (c != ")") {
+		cout << "Прикрой скобку, мне дует!" << endl;
+		throw c;
+	}
+	gc();
+	if (c != ";") {
+		cout << "Нет, я все понимаю, но не мог бы ты все-таки поставить сюда ; ?" << endl;
+		throw c;
+	}
+	gc();
+}
+
+void whiledo() {
+	//cout << "while do " << c.value << endl;
+	if (c != "(") {
+		cout << "Товарищ, не забывайте, пожалуйста, ставить скобки в операторах цикла." << endl;
+		throw c;
+	}
+	gc();
+	expression();
+	if (c != ")") {
+		cout << "Сегодня ты не закрыл скобку... А завтра не закроешь сессию?" << endl;
+		throw c;
+	}
+	gc();
+	single_operator();
 }
 
 int main(int argc, char ** argv) {
@@ -377,10 +905,25 @@ int main(int argc, char ** argv) {
 		cout << "Не указан файл для вывода" << endl;
 		return 0;
 	}
-	vector<token> list;
+	try {
 	lexic_analis(infile, list);
-	for (int i = 0; i < list.size(); i++) {
-		cout << list[i].type << ' ' ;
+	} catch (string s) {
+		cout << s << endl;
+		return 0;
+	}
+	last_elem = 0;
+	try {
+		gc();
+		program();
+	} catch (token a) {
+		cout << "Строка " << a.line << ", позиция " << a.position << endl;
+		cout << "Плохой символ: " << a.type << ' ' << a.value << endl;
+		return 0;
+	}
+	cout << "Я, конечно, не эксперт, но вроде все нормально" << endl;
+	/*
+	for (size_t i = 0; i < list.size(); i++) {
+		cout << list[i].type << ' ' << list[i].line << ' ' << list[i].position ;
 		
 		if (list[i].type == BRACKETS) cout << "(Скобки)";
 		else if (list[i].type == CONSTCHAR) cout << "(Символьная константа)";
@@ -394,6 +937,6 @@ int main(int argc, char ** argv) {
 		else if (list[i].type == RESERVED) cout << "(Зарезервированное слово)";
 		else if (list[i].type == UNDEF) cout << "(Не определено)";
 		cout << ' ' << list[i].value << endl;
-	}
+	}/**/
 	return 0;
 } 
