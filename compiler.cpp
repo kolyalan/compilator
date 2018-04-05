@@ -4,11 +4,48 @@
 #include <vector>
 #include <cstdio>
 #include <set>
+#include <cmath>
 using namespace std;
 
-enum TYPE{UNDEF, RESERVED, ID, CONSTINT, CONSTREAL, CONSTSTR, CONSTCHAR, CONSTLOGIC, OPERATION, PUNCTUATION, BRACKETS};
-enum VARTYPE{NONE, CHAR, UCHAR, SHORT, USHORT, INT, UINT, LL, ULL, FLOAT, DOUBLE, LDOUBLE, STR, BOOL, SUM, SUB, MULT, DIV, MOD, NOT, AND, OR, POW, MORE, LESS, MORE_EQ, LESS_EQ, EQUAL, NOT_EQ, INC, DEC, ASSIGN, ADDRESS, LINK, MOV, FALSE_MOV, SEMICOLON, UN_SUM, UN_SUB, CIN, COUT};
-//			   0   1      2      3       4     5     6    7   8    9       10       11      12  13    14   15   16    17   18   19   20  21   22   23    24     25       26       27     28     29   30    31     32перем. 33переход 34    35      36         37      38
+enum TYPE{UNDEF, RESERVED, ID, CONSTINT, CONSTREAL, CONSTSTR, CONSTLOGIC, OPERATION, PUNCTUATION, BRACKETS};
+enum VARTYPE{NONE, BOOL, INT, DOUBLE, STR, SUM, SUB, MULT, DIV, MOD, NOT, AND, OR, POW, MORE, LESS, MORE_EQ, LESS_EQ, EQUAL, NOT_EQ, INC, DEC, ASSIGN, ADDRESS, LINK, MOV, FALSE_MOV, SEMICOLON, UN_SUM, UN_SUB, CIN, COUT, ENDL};
+//			   0   1      2      3    4     5    6    7     8    9   10   11   12  13    14   15      16       17      18      19     20   21    22      23    24     25       26       27     28     29   30    31     32перем. 33переход 34    35      36         37      38
+
+string convert_back(VARTYPE t) {
+	if (t == NONE) return "NONE";
+	else if (t == INT) return "INT";
+	else if (t == STR) return "STR";
+	else if (t == BOOL) return "BOOL";
+	else if (t == SUM) return "+";
+	else if (t == SUB) return "-";
+	else if (t == MULT) return "*";
+	else if (t == DIV) return "/";
+	else if (t == MOD) return "%";
+	else if (t == NOT) return "NOT";
+	else if (t == AND) return "AND";
+	else if (t == OR) return "OR";
+	else if (t == POW) return "^";
+	else if (t == MORE) return ">";
+	else if (t == LESS) return "<";
+	else if (t == MORE_EQ) return ">=";
+	else if (t == LESS_EQ) return "<=";
+	else if (t == EQUAL) return "==";
+	else if (t == NOT_EQ) return "!=";
+	else if (t == INC) return "++";
+	else if (t == DEC) return "--";
+	else if (t == ASSIGN) return "ASSIGN";
+	else if (t == ADDRESS) return "var";
+	else if (t == LINK) return "LINK";
+	else if (t == MOV) return "!";
+	else if (t == FALSE_MOV) return "!F";
+	else if (t == SEMICOLON) return ";";
+	else if (t == UN_SUM) return "ун.+";
+	else if (t == UN_SUB) return "ун.-";
+	else if (t == CIN) return "CIN";
+	else if (t == COUT) return "COUT";
+	else return "";
+}
+
 struct token {
 	TYPE type = UNDEF;
 	string value;
@@ -23,28 +60,17 @@ struct var {
 	VARTYPE type;
 	void * value;
 	var() {};
+	~var() {
+		if (type == DOUBLE) delete (double *)value;
+		else if (type == INT) delete (int *)value;
+		else if (type == BOOL) delete (bool *)value;
+	}
 	var(string name, VARTYPE type) : name(name), type(type) {
 		if (type == BOOL) value = new bool(0);
-		else if (type == CHAR) value = new char(0);
-		else if (type == UCHAR) value = new unsigned char(0);
-		else if (type == SHORT) {
-			value = new short int(0);
-		} else if (type == USHORT) {
-			value = new unsigned short int(0);
-		} else if (type == INT) {
+		else if (type == INT) {
 			value = new int(0);
-		} else if (type == UINT) {
-			value = new unsigned int(0);
-		} else if (type == LL) {
-			value = new long long int(0);
-		} else if (type == ULL) {
-			value = new unsigned long long int(0);
-		} else if (type == FLOAT) {
-			value = new float(0);
 		} else if (type == DOUBLE) {
 			value = new double(0);
-		} else if (type == LDOUBLE) {
-			value = new long double(0);
 		} else if (type == STR) {
 			value = new string("");
 		}
@@ -57,26 +83,10 @@ struct var {
 				cout << "Неопознанная, но почему-то логическая константа. Возможно, ошибка в компиляторе";
 				throw c;
 			}
-		} else if (type == CHAR) *(char*)value = val[0];
-		else if (type == UCHAR) *(unsigned char*)value = val[0];
-		else if (type == SHORT) {
-			sscanf(val.c_str(), "%hd", (short int *) value);
-		} else if (type == USHORT) {
-			sscanf(val.c_str(), "%hu", (unsigned short int *) value);
 		} else if (type == INT) {
 			sscanf(val.c_str(), "%d", (int *) value);
-		} else if (type == UINT) {
-			sscanf(val.c_str(), "%u", (unsigned int *) value);
-		} else if (type == LL) {
-			sscanf(val.c_str(), "%lld", (long long int *) value);
-		} else if (type == ULL) {
-			sscanf(val.c_str(), "%llu", (unsigned long long int *) value);
-		} else if (type == FLOAT) {
-			sscanf(val.c_str(), "%f", (float *) value);
 		} else if (type == DOUBLE) {
 			sscanf(val.c_str(), "%lf", (double *) value);
-		} else if (type == LDOUBLE) {
-			sscanf(val.c_str(), "%Lf", (long double *) value);
 		} else if (type == STR) {
 			*(string *)value = val;
 		}
@@ -117,11 +127,11 @@ void push(VARTYPE t) {
 }
 
 bool is_int_type(VARTYPE t) {
-	return (t == CHAR || t == UCHAR || t == SHORT || t == USHORT || t == INT || t == UINT || t == LL || t == ULL);
+	return (t == INT);
 }
 
 bool is_num_type(VARTYPE t) {
-	return (t == CHAR || t == UCHAR || t == SHORT || t == USHORT || t == INT || t == UINT || t == LL || t == ULL || t == FLOAT || t == DOUBLE || t == LDOUBLE);
+	return (t == INT || t == DOUBLE);
 }
 
 void check_un() {
@@ -162,28 +172,10 @@ void check_op() {
 			cout << "Несоответствие типов операндов" << endl;
 			throw c;
 		}
-		if (t1 == LDOUBLE || t2 == LDOUBLE) {
-			ret = LDOUBLE;
-		} else if (t1 == DOUBLE || t2 == DOUBLE) {
+		if (t1 == DOUBLE || t2 == DOUBLE) {
 			ret = DOUBLE;
-		} else if (t1 == FLOAT || t2 == FLOAT) {
-			ret = FLOAT;
-		} else if (t1 == ULL || t2 == ULL) {
-			ret = ULL;
-		} else if (t1 == LL || t2 == LL) {
-			ret = LL;
-		} else if (t1 == UINT || t2 == UINT) {
-			ret = UINT;
 		} else if (t1 == INT || t2 == INT) {
 			ret = INT;
-		} else if (t1 == USHORT || t2 == USHORT) {
-			ret = USHORT;
-		} else if (t1 == SHORT || t2 == SHORT) {
-			ret = SHORT;
-		} else if (t1 == UCHAR || t2 == UCHAR) {
-			ret = UCHAR;
-		} else if (t1 == CHAR || t2 == CHAR) {
-			ret = CHAR;
 		} else {
 			cout << "Несоответствие типов" << endl;
 			throw c;
@@ -212,22 +204,8 @@ void check_op() {
 			cout << "Несоответствие типов операндов" << endl;
 			throw c;
 		}
-		if (t1 == ULL || t2 == ULL) {
-			ret = ULL;
-		} else if (t1 == LL || t2 == LL) {
-			ret = LL;
-		} else if (t1 == UINT || t2 == UINT) {
-			ret = UINT;
-		} else if (t1 == INT || t2 == INT) {
+		if (t1 == INT || t2 == INT) {
 			ret = INT;
-		} else if (t1 == USHORT || t2 == USHORT) {
-			ret = USHORT;
-		} else if (t1 == SHORT || t2 == SHORT) {
-			ret = SHORT;
-		} else if (t1 == UCHAR || t2 == UCHAR) {
-			ret = UCHAR;
-		} else if (t1 == CHAR || t2 == CHAR) {
-			ret = CHAR;
 		} else {
 			cout << "Несоответствие типов" << endl;
 			throw c;
@@ -322,6 +300,10 @@ bool is_mult_op(token & c) {
 }
 
 VARTYPE convert(token & c) {
+	if (c == CONSTINT) return INT;
+	if (c == CONSTLOGIC) return BOOL;
+	if (c == CONSTREAL) return DOUBLE;
+	if (c == CONSTSTR) return STR;
 	if (c == "+") return SUM;
 	if (c == "-") return SUB;
 	if (c == "||") return OR;
@@ -340,11 +322,6 @@ VARTYPE convert(token & c) {
 	if (c == "=") return ASSIGN;
 	if (c == "++") return INC;
 	if (c == "--") return DEC;
-	if (c == CONSTCHAR) return CHAR;
-	if (c == CONSTINT) return INT;
-	if (c == CONSTLOGIC) return BOOL;
-	if (c == CONSTREAL) return DOUBLE;
-	if (c == CONSTSTR) return STR;
 	return NONE;
 }
 
@@ -414,8 +391,6 @@ void lexic_analis (char * infile, vector<token> &list) {
 				current.value += c;
 			} else if (c == '"') {
 				state = 6;
-			} else if (c == '\'') {
-				state = 8;
 			} else if (c == '(' || c == ')') {
 				current.value += c;
 				current.type = BRACKETS;
@@ -435,7 +410,7 @@ void lexic_analis (char * infile, vector<token> &list) {
 				state = 11;
 			}
 		} else if (state == 1) {//Идентификатор или зарезервированное слово;
-			if (('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || c == '_') {
+			if (('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || c == '_' || ('0' <= c && c <= '9')) {
 				current.value += c;
 			} else {
 				fin.unget();
@@ -548,7 +523,7 @@ void lexic_analis (char * infile, vector<token> &list) {
 				current.value += c;
 			}
 			state = 6;
-		} else if (state == 8) {//Начали обрабатывать сивольную константу;
+		} /*else if (state == 8) {//Начали обрабатывать сивольную константу;
 			if (c == '\\') {
 				state = 9;
 			} else if (c == '\'') {
@@ -586,7 +561,7 @@ void lexic_analis (char * infile, vector<token> &list) {
 			} else {
 				throw "Многознаковая символьная константа";
 			}
-		} else if (state == 11) {//Надо считать оператор;
+		} */else if (state == 11) {//Надо считать оператор;
 			if (c == '+') {
 				current.value += "+";
 				if (fin.get(c)) {
@@ -755,6 +730,7 @@ void atom1();
 bool atom();
 void cfor();
 void pfor();
+void op_if();
 
 void program() {
 	//cout << "program " << c.value << endl;
@@ -806,89 +782,8 @@ void description() {//доедает свою ;
 		throw c;
 	}
 	VARTYPE t = NONE;
-	if (c == "signed") {
-		gc();
-		if (c == "char") {
-			t = CHAR;
-			gc();
-		} else if (c == "short") {
-			t = SHORT;
-			gc();
-			if (c == "int") {
-				gc();
-			}
-		} else if (c == "int") {
-			t = INT;
-			gc();
-		} else if (c == "long") {
-			t = INT;
-			gc();
-			if (c == "int") {
-				gc();
-			} else if (c == "long") {
-				t = LL;
-				gc();
-				if (c == "int") {
-					gc();
-				}
-			}
-		}
-	} else if (c == "unsigned") {
-		gc();
-		if (c == "char") {
-			t = UCHAR;
-			gc();
-		} else if (c == "short") {
-			t = USHORT;
-			gc();
-			if (c == "int") {
-				gc();
-			}
-		} else if (c == "int") {
-			t = UINT;
-			gc();
-		} else if (c == "long") {
-			t = UINT;
-			gc();
-			if (c == "int") {
-				gc();
-			} else if (c == "long") {
-				t = ULL;
-				gc();
-				if (c == "int") {
-					gc();
-				}
-			}
-		}
-	} else if (c == "short") {
-		t = SHORT;
-		gc();
-		if (c == "int") {
-			gc();
-		}
-	} else if (c == "long") {
+	if (c == "int") {
 		t = INT;
-		gc();
-		if (c == "int") {
-			gc();
-		} else if (c == "long") {
-			t = LL;
-			gc();
-			if (c == "int") {
-				gc();
-			}
-		} else if (c == "double") {
-			t = LDOUBLE;
-			gc();
-		}
-	} else if (c == "char") {
-		t = CHAR;
-		gc();
-	} else if (c == "int") {
-		t = INT;
-		gc();
-	} else if (c == "float") {
-		t = FLOAT;
 		gc();
 	} else if (c == "double") {
 		t = DOUBLE;
@@ -1041,7 +936,7 @@ void atom1() {
 			cout << "Использована операция " << c.value << " не для переменной"<< endl;
 			throw c;
 		}
-		if (!is_num_type(st.back())) {
+		if (!is_int_type(st.back())) {
 			cout << "Операция " << c.value << " не применима к этому типу" << endl;
 		}
 		poliz_add_op(convert(c));
@@ -1071,7 +966,7 @@ bool atom() {//возвращает 1, если это была просто п�
 		poliz_add_var(t);
 		gc();
 		return 1;
-	} else if (c == CONSTCHAR || c == CONSTINT || c == CONSTLOGIC || c == CONSTREAL || c == CONSTSTR) {
+	} else if (c == CONSTINT || c == CONSTLOGIC || c == CONSTREAL || c == CONSTSTR) {
 		push(convert(c));
 		poliz_add_const(convert(c), c.value);
 		gc();
@@ -1154,6 +1049,11 @@ void single_operator() {//доедает за собой ; но не }
 		gc();
 		return;
 	}
+	if (c == "if") {
+		gc();
+		op_if();
+		return;
+	}
 	expression();//А не доесть ли мне здесь ; ?
 	if (c == ";") {
 		poliz_add_op(SEMICOLON);
@@ -1205,7 +1105,10 @@ void output_operator() {
 			st.pop_back();
 			poliz_add_op(COUT);
 		}
-		else gc();
+		else {
+			poliz_add_op(ENDL);
+			gc();
+		}
 		if (c == ";") {
 			gc();
 			break;
@@ -1250,18 +1153,14 @@ void choose_for() {
 		}
 	} else {
 		cfor();
-	}//началось вырезание
-	if (c == "else") {
-		gc();
-		single_operator();
-	}//до сюда
+	}
 	remove_tid();
 }
 
 void cfor () {
 	var * b = new var("hidden", BOOL);
 	poliz_add_var(b);
-	poliz_add_const(BOOL, "false");//доделать константы
+	poliz_add_const(BOOL, "true");
 	poliz_add_op(ASSIGN);
 	poliz_add_op(SEMICOLON);
 	if (is_type(c)) {
@@ -1304,7 +1203,7 @@ void cfor () {
 	poliz_add_link(a3);
 	poliz_add_op(MOV);
 	poliz_add_var(b);
-	poliz_add_const(BOOL, "true");//доделать константы
+	poliz_add_const(BOOL, "false");
 	poliz_add_op(ASSIGN);
 	poliz_add_op(SEMICOLON);
 	polska[pa2].lnk = polska.size();
@@ -1329,6 +1228,17 @@ void pfor() {
 		cout << "Тот самый случай, когда ошибка в компиляторе" << endl;
 		throw c;
 	}
+	var * f = new var("hidden", BOOL);
+	poliz_add_var(f);
+	poliz_add_const(BOOL, "true");
+	poliz_add_op(ASSIGN);
+	poliz_add_op(SEMICOLON);
+	var * i = get_var(c.value);
+	if (i->type == DOUBLE) {
+		cout << "Невозможно использовать тип, не поддерживающий перечисления в качестве итератора pfor" << endl;
+		throw c;
+	}
+	poliz_add_var(i);
 	gc();
 	if (c != ":") {
 		cout << "Тот самый случай, когда ошибка в компиляторе" << endl;
@@ -1343,7 +1253,13 @@ void pfor() {
 	push(ASSIGN);
 	expression();
 	check_op();
+	poliz_add_op(ASSIGN);
+	poliz_add_op(SEMICOLON);
+	var * b = new var("hidden", i->type);
+	poliz_add_var(b);
 	if (c == "to" || c == "downto") {
+		bool up = 0;
+		if (c == "to") up = 1;
 		push(ASSIGN);
 		gc();
 		expression();
@@ -1353,8 +1269,42 @@ void pfor() {
 			cout << "Скобки закрывай! Ты не в метро!" << endl;
 			throw c;
 		}
+		poliz_add_op(ASSIGN);
+		poliz_add_op(SEMICOLON);
+		int a3 = polska.size();
+		poliz_add_var(i);
+		poliz_add_var(b);
+		poliz_add_op(LESS_EQ);
+		int pa1 = poliz_add_link(0);
+		poliz_add_op(FALSE_MOV);
+		int pa2 = poliz_add_link(0);
+		poliz_add_op(MOV);
+		int a4 = polska.size();
+		poliz_add_var(i);
+		if (up == 1) poliz_add_op(INC);
+		else poliz_add_op(DEC);
+		poliz_add_op(SEMICOLON);
+		poliz_add_link(a3);
+		poliz_add_op(MOV);
+		polska[pa2].lnk = polska.size();
+		poliz_add_var(f);
+		poliz_add_const(BOOL, "false");
+		poliz_add_op(ASSIGN);
+		poliz_add_op(SEMICOLON);
 		gc();
 		single_operator();
+		poliz_add_link(a4);
+		poliz_add_op(MOV);
+		polska[pa1].lnk = polska.size();
+		if (c == "else") {
+			poliz_add_var(f);
+			int pa5 = poliz_add_link(0);
+			poliz_add_op(FALSE_MOV);
+			gc();
+			single_operator();
+			polska[pa5].lnk = polska.size();
+		}
+		
 	} else {
 		cout << "Вверх или вниз?" << endl;
 		throw c;
@@ -1432,64 +1382,585 @@ void whiledo() {
 	remove_tid();
 }
 
-int main(int argc, char ** argv) {
-	char infile[256] = {0};
-	char outfile[256] = {0};
-	bool o = 0;
-	for (int i = 1; i < argc; i++) {
-		if (argv[i][0] == '-') {
-			if (argv[i][1] == 'o') {
-				o = 1;
+void op_if() {
+	add_area();
+	if (c != "(") {
+		cout << "А как же скобочки в if?" << endl;
+		throw c;
+	}
+	gc();
+	expression();
+	VARTYPE t = st.back();
+	st.pop_back();
+	if (t != BOOL) {
+		cout << "Условие в if возвращает не bool" << endl;
+		throw c;
+	}
+	if (c != ")") {
+		cout << "Сегодня ты не закрыл скобку... А завтра не закроешь сессию?" << endl;
+		throw c;
+	}
+	int a1 = poliz_add_link(0);
+	poliz_add_op(FALSE_MOV);
+	gc();
+	single_operator();
+	if (c == "else") {
+		int a2 = poliz_add_link(0);
+		poliz_add_op(MOV);
+		polska[a1].lnk = polska.size();
+		gc();
+		single_operator();
+		polska[a2].lnk = polska.size();
+	} else {
+		polska[a1].lnk = polska.size();
+	}
+	remove_tid();
+}
+
+vector<poliz_elem> stack;
+
+bool is_operand(VARTYPE t) {
+	return  (t == ADDRESS || t == LINK);
+}
+// INT, DOUBLE, STR, BOOL, ADDRESS, LINK,
+// SUM|, SUB|, MULT|, DIV|, MOD|, POW|, NOT|, AND|, OR|, MORE|, LESS|, MORE_EQ|, LESS_EQ|, EQUAL|, NOT_EQ|, INC|, DEC|, ASSIGN|, 
+// MOV, FALSE_MOV, SEMICOLON|, UN_SUM|, UN_SUB|, CIN|, COUT|
+
+void execute() {
+	for (size_t i = 0; i < polska.size(); i++) {
+		poliz_elem c = polska[i];
+		
+		cout << i << " " << convert_back(c.op) << " ";
+		if (c.op == ADDRESS) {
+			cout << c.addr->name;
+			if (c.addr->type == STR) {
+				cout << *(string*)c.addr->value << " STR";
 			}
 		}
-		else {
-			if (!o && infile[0] == 0) {
-				char * a = &argv[i][strlen(argv[i])-1];
-				if (argv[i][0] == '\'' && *a == '\'') {
-					*a = 0;
-					strcpy(infile, argv[i]+1);
-				} else {
-					strcpy(infile, argv[i]);
-				}
-			} else if (o && outfile[0] == 0) {
-				char * a = &argv[i][strlen(argv[i])-1];
-				if (*a == '\'') {
-					*a = 0;
-					strcpy(outfile, argv[i]+1);
-				} else {
-					strcpy(outfile, argv[i]);
-				}
-				o = 0;
+		if (c.op == LINK) cout << c.lnk;
+		cout << endl;
+		
+		if (is_operand(c.op)) {
+			stack.push_back(c);
+		} else if (c.op == SUM) {
+			poliz_elem aa, bb;
+			bb = stack.back();
+			stack.pop_back();
+			aa = stack.back();
+			stack.pop_back();
+			var * a = aa.addr;
+			var * b = bb.addr;
+			var * c;
+			if (a->type == DOUBLE || b->type == DOUBLE) {
+				c = new var("tmp", DOUBLE);
+				if (a->type == DOUBLE) *(double*)c->value = *(double*)a->value;
+				if (a->type == INT) *(double*)c->value = *(int*)a->value;
+				if (a->type == BOOL) *(double*)c->value = *(bool*)a->value;
+				
+				if (b->type == DOUBLE) *(double*)c->value += *(double*)b->value;
+				if (b->type == INT) *(double*)c->value += *(int*)b->value;
+				if (b->type == BOOL) *(double*)c->value += *(bool*)b->value;
+			} else if (a->type == INT || b->type == INT) {
+				c = new var("tmp", INT);
+				if (a->type == INT) *(int*)c->value = *(int*)a->value;
+				if (a->type == BOOL) *(int*)c->value = *(bool*)a->value;
+				
+				if (b->type == INT) *(int*)c->value += *(int*)b->value;
+				if (b->type == BOOL) *(int*)c->value += *(bool*)b->value;
 			} else {
-				if (o) {
-					if (outfile[0] == 0) {
-						cout << "Отсутствует файл для вывода" << endl;
-					} else {
-						cout << "Указано несколько файлов для вывода" << endl;
-					}
-				}
-				else {
-					if (infile[0] == 0) {
-						cout << "Отсутствует исходный файл" << endl;
-					} else {
-						cout << "Указано несколько исходных файлов" << endl;
-					}
-				}
-				return 0;
+				c = new var("tmp", BOOL);
+				if (a->type == BOOL) *(bool*)c->value = *(bool*)a->value;
+				if (b->type == BOOL) *(bool*)c->value += *(bool*)b->value;
 			}
+			stack.push_back(poliz_elem(ADDRESS, c));
+			if (a->name == "tmp") delete a;
+			if (b->name == "tmp") delete b;
+		} else if (c.op == SUB) {
+			poliz_elem aa, bb;
+			bb = stack.back();
+			stack.pop_back();
+			aa = stack.back();
+			stack.pop_back();
+			var * a = aa.addr;
+			var * b = bb.addr;
+			var * c;
+			if (a->type == DOUBLE || b->type == DOUBLE) {
+				c = new var("tmp", DOUBLE);
+				if (a->type == DOUBLE) *(double*)c->value = *(double*)a->value;
+				if (a->type == INT) *(double*)c->value = *(int*)a->value;
+				if (a->type == BOOL) *(double*)c->value = *(bool*)a->value;
+				
+				if (b->type == DOUBLE) *(double*)c->value -= *(double*)b->value;
+				if (b->type == INT) *(double*)c->value -= *(int*)b->value;
+				if (b->type == BOOL) *(double*)c->value -= *(bool*)b->value;
+			} else if (a->type == INT || b->type == INT) {
+				c = new var("tmp", INT);
+				if (a->type == INT) *(int*)c->value = *(int*)a->value;
+				if (a->type == BOOL) *(int*)c->value = *(bool*)a->value;
+				
+				if (b->type == INT) *(int*)c->value -= *(int*)b->value;
+				if (b->type == BOOL) *(int*)c->value -= *(bool*)b->value;
+			} else {
+				c = new var("tmp", BOOL);
+				if (a->type == BOOL) *(bool*)c->value = *(bool*)a->value;
+				if (b->type == BOOL) *(bool*)c->value -= *(bool*)b->value;
+			}
+			stack.push_back(poliz_elem(ADDRESS, c));
+			if (a->name == "tmp") delete a;
+			if (b->name == "tmp") delete b;
+		} else if (c.op == MULT) {
+			poliz_elem aa, bb;
+			bb = stack.back();
+			stack.pop_back();
+			aa = stack.back();
+			stack.pop_back();
+			var * a = aa.addr;
+			var * b = bb.addr;
+			var * c;
+			if (a->type == DOUBLE || b->type == DOUBLE) {
+				c = new var("tmp", DOUBLE);
+				if (a->type == DOUBLE) *(double*)c->value = *(double*)a->value;
+				if (a->type == INT) *(double*)c->value = *(int*)a->value;
+				
+				if (b->type == DOUBLE) *(double*)c->value *= *(double*)b->value;
+				if (b->type == INT) *(double*)c->value *= *(int*)b->value;
+			} else if (a->type == INT || b->type == INT) {
+				c = new var("tmp", INT);
+				if (a->type == INT) *(int*)c->value = *(int*)a->value;
+				
+				if (b->type == INT) *(int*)c->value *= *(int*)b->value;
+			}
+			stack.push_back(poliz_elem(ADDRESS, c));
+			if (a->name == "tmp") delete a;
+			if (b->name == "tmp") delete b;	
+		} else if (c.op == DIV) {
+			poliz_elem aa, bb;
+			bb = stack.back();
+			stack.pop_back();
+			aa = stack.back();
+			stack.pop_back();
+			var * a = aa.addr;
+			var * b = bb.addr;
+			var * c;
+			if (a->type == DOUBLE || b->type == DOUBLE) {
+				c = new var("tmp", DOUBLE);
+				if (a->type == DOUBLE) *(double*)c->value = *(double*)a->value;
+				if (a->type == INT) *(double*)c->value = *(int*)a->value;
+				if (a->type == BOOL) *(double*)c->value = *(bool*)a->value;
+				
+				if (b->type == DOUBLE) *(double*)c->value /= *(double*)b->value;
+				if (b->type == INT) *(double*)c->value /= *(int*)b->value;
+				if (b->type == BOOL) *(double*)c->value /= *(bool*)b->value;
+			} else if (a->type == INT || b->type == INT) {
+				c = new var("tmp", INT);
+				if (a->type == INT) *(int*)c->value = *(int*)a->value;
+				if (a->type == BOOL) *(int*)c->value = *(bool*)a->value;
+				
+				if (b->type == INT) *(int*)c->value /= *(int*)b->value;
+				if (b->type == BOOL) *(int*)c->value /= *(bool*)b->value;
+			} else {
+				c = new var("tmp", BOOL);
+				if (a->type == BOOL) *(bool*)c->value = *(bool*)a->value;
+				if (b->type == BOOL) *(bool*)c->value /= *(bool*)b->value;
+			}
+			stack.push_back(poliz_elem(ADDRESS, c));
+			if (a->name == "tmp") delete a;
+			if (b->name == "tmp") delete b;
+		} else if (c.op == MOD) {
+			poliz_elem aa, bb;
+			bb = stack.back();
+			stack.pop_back();
+			aa = stack.back();
+			stack.pop_back();
+			var * a = aa.addr;
+			var * b = bb.addr;
+			var * c;
+			c = new var("tmp", INT);
+			if (a->type == INT) *(int*)c->value = *(int*)a->value;	
+			if (b->type == INT) *(int*)c->value %= *(int*)b->value;
+			stack.push_back(poliz_elem(ADDRESS, c));
+			if (a->name == "tmp") delete a;
+			if (b->name == "tmp") delete b;
+		} else if (c.op == POW) {
+			poliz_elem aa, bb;
+			bb = stack.back();
+			stack.pop_back();
+			aa = stack.back();
+			stack.pop_back();
+			var * a = aa.addr;
+			var * b = bb.addr;
+			var * c;
+			c = new var("tmp", DOUBLE);
+			if (a->type == DOUBLE) *(double*)c->value = *(double*)a->value;
+			if (a->type == INT) *(double*)c->value = *(int*)a->value;
+			
+			if (b->type == DOUBLE) *(double*)c->value = pow(*(double*)c->value, *(double*)b->value);
+			if (b->type == INT) *(double*)c->value = pow(*(double*)c->value, *(int*)b->value);
+			stack.push_back(poliz_elem(ADDRESS, c));
+			if (a->name == "tmp") delete a;
+			if (b->name == "tmp") delete b;
+		} else if (c.op == NOT) {
+			poliz_elem aa;
+			aa = stack.back();
+			stack.pop_back();
+			var * a = aa.addr;
+			var * b = new var("tmp", BOOL);
+			*(bool*)b->value = !(*(bool*)a->value);
+			stack.push_back(poliz_elem(ADDRESS, b));
+			if (a->name == "tmp") delete a;
+		} else if (c.op == UN_SUM) {
+			continue;
+		} else if (c.op == UN_SUB) {
+			poliz_elem aa;
+			aa = stack.back();
+			stack.pop_back();
+			var * a = aa.addr;
+			var * b;
+			if (a->type == DOUBLE) {
+				b = new var("tmp", DOUBLE);
+				*(double*)b->value = -(*(double*)a->value);
+			} else {//if (a->type == INT) {
+				b = new var("tmp", INT);
+				*(int*)b->value = -(*(int*)a->value);
+			}
+			stack.push_back(poliz_elem(ADDRESS, b));
+			if (a->name == "tmp") delete a;
+		} else if (c.op == COUT) {
+			poliz_elem aa;
+			aa = stack.back();
+			stack.pop_back();
+			var * a = aa.addr;
+			if (a->type == STR) cout << *(string*)a->value;
+			else if (a->type == DOUBLE) cout << *(double*)a->value;
+			else if (a->type == INT) cout << *(int*)a->value;
+			else if (a->type == BOOL) cout << *(bool*)a->value;
+			if (a->name == "tmp") delete a;
+		} else if (c.op == CIN) {
+			poliz_elem aa;
+			aa = stack.back();
+			stack.pop_back();
+			var * a = aa.addr;
+			if (a->type == DOUBLE) cin >> *(double*)a->value;
+			else if (a->type == INT) cin >> *(int*)a->value;
+			else if (a->type == BOOL) cin >> *(bool*)a->value;
+		} else if (c.op == AND) {
+			poliz_elem aa, bb;
+			bb = stack.back();
+			stack.pop_back();
+			aa = stack.back();
+			stack.pop_back();
+			var * a = aa.addr;
+			var * b = bb.addr;
+			var * c;
+			c = new var("tmp", BOOL);
+			*(bool*)c->value = *(bool*)a->value && *(bool*)b->value;
+			stack.push_back(poliz_elem(ADDRESS, c));
+			if (a->name == "tmp") delete a;
+			if (b->name == "tmp") delete b;
+		} else if (c.op == OR) {
+			poliz_elem aa, bb;
+			bb = stack.back();
+			stack.pop_back();
+			aa = stack.back();
+			stack.pop_back();
+			var * a = aa.addr;
+			var * b = bb.addr;
+			var * c;
+			c = new var("tmp", BOOL);
+			*(bool*)c->value = *(bool*)a->value || *(bool*)b->value;
+			stack.push_back(poliz_elem(ADDRESS, c));
+			if (a->name == "tmp") delete a;
+			if (b->name == "tmp") delete b;
+		} else if (c.op == ASSIGN) {
+			poliz_elem aa, bb;
+			bb = stack.back();
+			stack.pop_back();
+			aa = stack.back();
+			stack.pop_back();
+			var * a = aa.addr;
+			var * b = bb.addr;
+			if (a->type == DOUBLE) {
+				if (b->type == DOUBLE) *(double*)a->value = *(double*)b->value;
+				if (b->type == INT) *(double*)a->value = *(int*)b->value;
+				if (b->type == BOOL) *(double*)a->value = *(bool*)b->value;
+			} else if (a->type == INT) {
+				if (b->type == INT) *(int*)a->value = *(int*)b->value;
+				if (b->type == BOOL) *(int*)a->value = *(bool*)b->value;
+			} else {
+				if (b->type == BOOL) *(bool*)a->value = *(bool*)b->value;
+			}
+			stack.push_back(poliz_elem(ADDRESS, a));
+			if (b->name == "tmp") delete b;
+		} else if (c.op == MORE) {
+			poliz_elem aa, bb;
+			bb = stack.back();
+			stack.pop_back();
+			aa = stack.back();
+			stack.pop_back();
+			var * a = aa.addr;
+			var * b = bb.addr;
+			var * c = new var("tmp", BOOL);
+			if (a->type == DOUBLE || b->type == DOUBLE) {
+				double t;
+				if (a->type == DOUBLE) t = *(double*)a->value;
+				if (a->type == INT) t = *(int*)a->value;
+				if (a->type == BOOL) t = *(bool*)a->value;
+				
+				if (b->type == DOUBLE) *(bool*)c->value = t > *(double*)b->value;
+				if (b->type == INT) *(bool*)c->value = t > *(int*)b->value;
+				if (b->type == BOOL) *(bool*)c->value = t > *(bool*)b->value;
+			} else if (a->type == INT || b->type == INT) {
+				int t;
+				if (a->type == INT) t = *(int*)a->value;
+				if (a->type == BOOL) t = *(bool*)a->value;
+				
+				if (b->type == INT) *(bool*)c->value = t > *(int*)b->value;
+				if (b->type == BOOL) *(bool*)c->value = t > *(bool*)b->value;
+			} else {
+				bool t;
+				if (a->type == BOOL) t = *(bool*)a->value;
+				if (b->type == BOOL) *(bool*)c->value = t > *(bool*)b->value;
+			}
+			stack.push_back(poliz_elem(ADDRESS, c));
+			if (a->name == "tmp") delete a;
+			if (b->name == "tmp") delete b;
+		} else if (c.op == LESS) {
+			poliz_elem aa, bb;
+			bb = stack.back();
+			stack.pop_back();
+			aa = stack.back();
+			stack.pop_back();
+			var * a = aa.addr;
+			var * b = bb.addr;
+			var * c = new var("tmp", BOOL);
+			if (a->type == DOUBLE || b->type == DOUBLE) {
+				double t;
+				if (a->type == DOUBLE) t = *(double*)a->value;
+				if (a->type == INT) t = *(int*)a->value;
+				if (a->type == BOOL) t = *(bool*)a->value;
+				
+				if (b->type == DOUBLE) *(bool*)c->value = t < *(double*)b->value;
+				if (b->type == INT) *(bool*)c->value = t < *(int*)b->value;
+				if (b->type == BOOL) *(bool*)c->value = t < *(bool*)b->value;
+			} else if (a->type == INT || b->type == INT) {
+				int t;
+				if (a->type == INT) t = *(int*)a->value;
+				if (a->type == BOOL) t = *(bool*)a->value;
+				
+				if (b->type == INT) *(bool*)c->value = t < *(int*)b->value;
+				if (b->type == BOOL) *(bool*)c->value = t < *(bool*)b->value;
+			} else {
+				bool t;
+				if (a->type == BOOL) t = *(bool*)a->value;
+				if (b->type == BOOL) *(bool*)c->value = t < *(bool*)b->value;
+			}
+			stack.push_back(poliz_elem(ADDRESS, c));
+			if (a->name == "tmp") delete a;
+			if (b->name == "tmp") delete b;
+		} else if (c.op == MORE_EQ) {
+			poliz_elem aa, bb;
+			bb = stack.back();
+			stack.pop_back();
+			aa = stack.back();
+			stack.pop_back();
+			var * a = aa.addr;
+			var * b = bb.addr;
+			var * c = new var("tmp", BOOL);
+			if (a->type == DOUBLE || b->type == DOUBLE) {
+				double t;
+				if (a->type == DOUBLE) t = *(double*)a->value;
+				if (a->type == INT) t = *(int*)a->value;
+				if (a->type == BOOL) t = *(bool*)a->value;
+				
+				if (b->type == DOUBLE) *(bool*)c->value = t >= *(double*)b->value;
+				if (b->type == INT) *(bool*)c->value = t >= *(int*)b->value;
+				if (b->type == BOOL) *(bool*)c->value = t >= *(bool*)b->value;
+			} else if (a->type == INT || b->type == INT) {
+				int t;
+				if (a->type == INT) t = *(int*)a->value;
+				if (a->type == BOOL) t = *(bool*)a->value;
+				
+				if (b->type == INT) *(bool*)c->value = t >= *(int*)b->value;
+				if (b->type == BOOL) *(bool*)c->value = t >= *(bool*)b->value;
+			} else {
+				bool t;
+				if (a->type == BOOL) t = *(bool*)a->value;
+				if (b->type == BOOL) *(bool*)c->value = t >= *(bool*)b->value;
+			}
+			stack.push_back(poliz_elem(ADDRESS, c));
+			if (a->name == "tmp") delete a;
+			if (b->name == "tmp") delete b;
+		} else if (c.op == LESS_EQ) {
+			poliz_elem aa, bb;
+			bb = stack.back();
+			stack.pop_back();
+			aa = stack.back();
+			stack.pop_back();
+			var * a = aa.addr;
+			var * b = bb.addr;
+			var * c = new var("tmp", BOOL);
+			if (a->type == DOUBLE || b->type == DOUBLE) {
+				double t;
+				if (a->type == DOUBLE) t = *(double*)a->value;
+				if (a->type == INT) t = *(int*)a->value;
+				if (a->type == BOOL) t = *(bool*)a->value;
+				
+				if (b->type == DOUBLE) *(bool*)c->value = t <= *(double*)b->value;
+				if (b->type == INT) *(bool*)c->value = t <= *(int*)b->value;
+				if (b->type == BOOL) *(bool*)c->value = t <= *(bool*)b->value;
+			} else if (a->type == INT || b->type == INT) {
+				int t;
+				if (a->type == INT) t = *(int*)a->value;
+				if (a->type == BOOL) t = *(bool*)a->value;
+				
+				if (b->type == INT) *(bool*)c->value = t <= *(int*)b->value;
+				if (b->type == BOOL) *(bool*)c->value = t <= *(bool*)b->value;
+			} else {
+				bool t;
+				if (a->type == BOOL) t = *(bool*)a->value;
+				if (b->type == BOOL) *(bool*)c->value = t <= *(bool*)b->value;
+			}
+			stack.push_back(poliz_elem(ADDRESS, c));
+			if (a->name == "tmp") delete a;
+			if (b->name == "tmp") delete b;
+		} else if (c.op == EQUAL) {
+			poliz_elem aa, bb;
+			bb = stack.back();
+			stack.pop_back();
+			aa = stack.back();
+			stack.pop_back();
+			var * a = aa.addr;
+			var * b = bb.addr;
+			var * c = new var("tmp", BOOL);
+			if (a->type == DOUBLE || b->type == DOUBLE) {
+				double t;
+				if (a->type == DOUBLE) t = *(double*)a->value;
+				if (a->type == INT) t = *(int*)a->value;
+				if (a->type == BOOL) t = *(bool*)a->value;
+				
+				if (b->type == DOUBLE) *(bool*)c->value = t == *(double*)b->value;
+				if (b->type == INT) *(bool*)c->value = t == *(int*)b->value;
+				if (b->type == BOOL) *(bool*)c->value = t == *(bool*)b->value;
+			} else if (a->type == INT || b->type == INT) {
+				int t;
+				if (a->type == INT) t = *(int*)a->value;
+				if (a->type == BOOL) t = *(bool*)a->value;
+				
+				if (b->type == INT) *(bool*)c->value = t == *(int*)b->value;
+				if (b->type == BOOL) *(bool*)c->value = t == *(bool*)b->value;
+			} else {
+				bool t;
+				if (a->type == BOOL) t = *(bool*)a->value;
+				if (b->type == BOOL) *(bool*)c->value = t == *(bool*)b->value;
+			}
+			stack.push_back(poliz_elem(ADDRESS, c));
+			if (a->name == "tmp") delete a;
+			if (b->name == "tmp") delete b;
+		} else if (c.op == NOT_EQ) {
+			poliz_elem aa, bb;
+			bb = stack.back();
+			stack.pop_back();
+			aa = stack.back();
+			stack.pop_back();
+			var * a = aa.addr;
+			var * b = bb.addr;
+			var * c = new var("tmp", BOOL);
+			if (a->type == DOUBLE || b->type == DOUBLE) {
+				double t;
+				if (a->type == DOUBLE) t = *(double*)a->value;
+				if (a->type == INT) t = *(int*)a->value;
+				if (a->type == BOOL) t = *(bool*)a->value;
+				
+				if (b->type == DOUBLE) *(bool*)c->value = t != *(double*)b->value;
+				if (b->type == INT) *(bool*)c->value = t != *(int*)b->value;
+				if (b->type == BOOL) *(bool*)c->value = t != *(bool*)b->value;
+			} else if (a->type == INT || b->type == INT) {
+				int t;
+				if (a->type == INT) t = *(int*)a->value;
+				if (a->type == BOOL) t = *(bool*)a->value;
+				
+				if (b->type == INT) *(bool*)c->value = t != *(int*)b->value;
+				if (b->type == BOOL) *(bool*)c->value = t != *(bool*)b->value;
+			} else {
+				bool t;
+				if (a->type == BOOL) t = *(bool*)a->value;
+				if (b->type == BOOL) *(bool*)c->value = t != *(bool*)b->value;
+			}
+			stack.push_back(poliz_elem(ADDRESS, c));
+			if (a->name == "tmp") delete a;
+			if (b->name == "tmp") delete b;
+		} else if (c.op == INC) {
+			poliz_elem aa;
+			aa = stack.back();
+			stack.pop_back();
+			var * a = aa.addr;
+			var * b;
+			if (a->type == INT) {
+				b = new var("tmp", INT);
+				*(int*)b->value = *(int*) a->value;
+				(*(int *)a->value)++;
+			}
+			stack.push_back(poliz_elem(ADDRESS, b));
+		} else if (c.op == DEC) {
+			poliz_elem aa;
+			aa = stack.back();
+			stack.pop_back();
+			var * a = aa.addr;
+			var * b;
+			if (a->type == INT) {
+				b = new var("tmp", INT);
+				*(int*)b->value = *(int*) a->value;
+				(*(int *)a->value)--;
+			}
+			stack.push_back(poliz_elem(ADDRESS, b));
+		} else if (c.op == SEMICOLON) {
+			poliz_elem aa = stack.back();
+			stack.pop_back();
+			if (aa.addr->name == "tmp") delete aa.addr;
+		} else if (c.op == MOV) {
+			poliz_elem aa = stack.back();
+			stack.pop_back();
+			i = aa.lnk-1;
+		} else if (c.op == FALSE_MOV) {
+			poliz_elem aa = stack.back();
+			stack.pop_back();
+			poliz_elem bb = stack.back();
+			stack.pop_back();
+			var * b = bb.addr;
+			if (!*(bool*)b->value) {
+				i = aa.lnk-1;
+			}
+			if (b->name =="tmp") delete b;
+		} else if (c.op == ENDL) {
+			cout << endl;
+		}
+	}
+}
+
+int main(int argc, char ** argv) {
+	char infile[256] = {0};
+	for (int i = 1; i < argc; i++) {
+		if (infile[0] == 0) {
+			char * a = &argv[i][strlen(argv[i])-1];
+			if (argv[i][0] == '\'' && *a == '\'') {
+				*a = 0;
+				strcpy(infile, argv[i]+1);
+			} else {
+				strcpy(infile, argv[i]);
+			}
+		} else {
+			cout << "Указано несколько исходных файлов" << endl;
+			return 0;
 		}
 	}
 	if (infile[0] == 0)	{
 		cout << "Не указан исходный файл" << endl;
 		return 0;
 	}
-	if (outfile[0] == 0) {
-		cout << "Не указан файл для вывода" << endl;
-		return 0;
-	}
 	try {
 	lexic_analis(infile, list);
 	} catch (string s) {
+		cout << "Ошибка на этапе лексического анализа" << endl;
 		cout << s << endl;
 		return 0;
 	}
@@ -1502,8 +1973,9 @@ int main(int argc, char ** argv) {
 		cout << "Плохой символ: " << a.type << ' ' << a.value << endl;
 		return 1;
 	}
-	cout << "Я, конечно, не эксперт, но вроде все нормально" << endl;
-	for (int i = 0; i < polska.size(); i++) {
+	//cout << st.size() << endl;
+	cout << "Я, конечно, не эксперт, но вроде все нормально. Выполняю." << endl;
+	/*for (int i = 0; i < polska.size(); i++) {
 		cout << i << ' ' << polska[i].op << " ";
 		if (polska[i].op == ADDRESS) {
 			cout << polska[i].addr->name;
@@ -1523,13 +1995,14 @@ int main(int argc, char ** argv) {
 		if (polska[i].op == MOV) cout << "! ";
 		if (polska[i].op == FALSE_MOV) cout << "!f ";
 		cout << endl;
-	}
-	/*
-	for (size_t i = 0; i < list.size(); i++) {
+	}*/
+	execute();
+	cout << endl;
+	/*for (size_t i = 0; i < list.size(); i++) {
 		cout << list[i].type << ' ' << list[i].line << ' ' << list[i].position ;
 		
 		if (list[i].type == BRACKETS) cout << "(Скобки)";
-		else if (list[i].type == CONSTCHAR) cout << "(Символьная константа)";
+		//else if (list[i].type == CONSTCHAR) cout << "(Символьная константа)";
 		else if (list[i].type == CONSTINT) cout << "(Целочисленная константа)";
 		else if (list[i].type == CONSTSTR) cout << "(Строковая константа)";
 		else if (list[i].type == CONSTREAL) cout << "(Действительная константа)";
